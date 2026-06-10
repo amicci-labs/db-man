@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { DatabaseRepositoryReference, DatabaseRepositoryResolution } from '../types.js';
+import { findSchemaFile } from '../schema/find-schema-file.js';
 import { runGit } from '../utils/command.js';
 
 export async function cloneOrFetchDatabaseRepository(
@@ -51,9 +52,8 @@ export async function cloneOrFetchDatabaseRepository(
 
 async function findLocalSiblingRepository(repositoryName: string, appRoot: string): Promise<string | undefined> {
     const siblingPath = path.join(path.dirname(appRoot), repositoryName);
-    const schemaPath = path.join(siblingPath, 'src/db/schema.sql');
 
-    if (await exists(schemaPath)) {
+    if (await findSchemaFile(siblingPath)) {
         return siblingPath;
     }
 

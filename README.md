@@ -2,7 +2,7 @@
 
 `db-man` generates application persistence code from database schema repositories.
 
-The first adapter supports Python/FastAPI applications that use SQLAlchemy and Pydantic. The database repository remains the owner of migrations and `src/db/schema.sql`; `db-man` consumes that contract and writes compatible files inside each application repository.
+The first adapter supports Python/FastAPI applications that use SQLAlchemy and Pydantic. The database repository remains the owner of migrations and `schema.sql`; `db-man` consumes that contract and writes compatible files inside each application repository.
 
 ## Requirements
 
@@ -111,7 +111,7 @@ The current adapter writes:
 
 ## Schema Resolution
 
-When `db-man generate` runs, it reads `.dbman`, resolves the configured database repository, loads `src/db/schema.sql`, selects the configured adapter, and builds a file plan.
+When `db-man generate` runs, it reads `.dbman`, resolves the configured database repository, finds `schema.sql`, selects the configured adapter, and builds a file plan. `db-man` prefers `src/db/schema.sql` when it exists, then searches the repository for the first `schema.sql` while skipping directories such as `.git`, `node_modules`, and `dist`.
 
 Repository resolution order:
 

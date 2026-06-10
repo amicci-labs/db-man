@@ -1,18 +1,17 @@
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 
 import type { DatabaseSchema } from '../types.js';
+import { findSchemaFile } from './find-schema-file.js';
 import { parsePostgresSchema } from './parse-postgres-schema.js';
 
 export async function loadDatabaseSchema(databaseRepositoryPath: string): Promise<DatabaseSchema> {
-    const schemaPath = path.join(databaseRepositoryPath, 'src/db/schema.sql');
-    const schemaSql = await readFile(schemaPath, 'utf8').catch((error: NodeJS.ErrnoException) => {
-        if (error.code === 'ENOENT') {
-            throw new Error(`Could not find database schema at ${schemaPath}.`);
-        }
+    const schemaPath = await findSchemaFile(databaseRepositoryPath);
 
-        throw error;
-    });
+    if (!schemaPath) {
+        throw new Error(`Could not find schema.sql inside ${databaseRepositoryPath}.`);
+    }
+
+    const schemaSql = await readFile(schemaPath, 'utf8');
 
     return {
         sourcePath: schemaPath,

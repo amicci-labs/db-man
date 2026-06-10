@@ -2,6 +2,7 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { DatabaseRepositoryOption } from '../types.js';
+import { findSchemaFile } from '../schema/find-schema-file.js';
 import { runCommand, runGit } from '../utils/command.js';
 import { parseGitRemoteUrl, toSshGitUrl } from './git-url.js';
 
@@ -74,7 +75,7 @@ async function listLocalDatabaseRepositories(appRoot: string): Promise<DatabaseR
         }
 
         const hasGitDirectory = await stat(path.join(localPath, '.git')).then(() => true, () => false);
-        const hasSchema = await stat(path.join(localPath, 'src/db/schema.sql')).then(() => true, () => false);
+        const hasSchema = Boolean(await findSchemaFile(localPath));
 
         if (!hasGitDirectory && !hasSchema) {
             continue;
