@@ -1,6 +1,6 @@
 {
     "name": "@amicci-labs/db-man",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Generate application persistence code from database schema repositories.",
     "type": "module",
     "bin": {
