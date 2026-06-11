@@ -22,6 +22,8 @@
         "database",
         "codegen",
         "fastapi",
+        "nextjs",
+        "prisma",
         "sqlalchemy"
     ],
     "author": "Amicci Labs",

@@ -1,7 +1,8 @@
 import type { ApplicationConfig, GeneratorAdapter } from '../types.js';
 import { pythonFastapiSqlalchemyGenerator } from './python-fastapi-sqlalchemy/index.js';
+import { typescriptNextjsPrismaGenerator } from './typescript-nextjs-prisma/index.js';
 
-const generatorAdapters: GeneratorAdapter[] = [pythonFastapiSqlalchemyGenerator];
+const generatorAdapters: GeneratorAdapter[] = [pythonFastapiSqlalchemyGenerator, typescriptNextjsPrismaGenerator];
 
 export function listGeneratorAdapters(): GeneratorAdapter[] {
     return [...generatorAdapters];

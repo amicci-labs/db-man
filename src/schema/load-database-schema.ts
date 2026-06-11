@@ -1,20 +1,33 @@
 import { readFile } from 'node:fs/promises';
 
-import type { DatabaseSchema } from '../types.js';
+import type { DatabaseSchema, DatabaseSchemaSourceType } from '../types.js';
 import { findSchemaFile } from './find-schema-file.js';
+import { parsePrismaSchema } from './parse-prisma-schema.js';
 import { parsePostgresSchema } from './parse-postgres-schema.js';
 
-export async function loadDatabaseSchema(databaseRepositoryPath: string): Promise<DatabaseSchema> {
-    const schemaPath = await findSchemaFile(databaseRepositoryPath);
+export async function loadDatabaseSchema(
+    databaseRepositoryPath: string,
+    sourceTypes?: DatabaseSchemaSourceType[],
+): Promise<DatabaseSchema> {
+    const schemaPath = await findSchemaFile(databaseRepositoryPath, sourceTypes);
 
     if (!schemaPath) {
-        throw new Error(`Could not find schema.sql inside ${databaseRepositoryPath}.`);
+        throw new Error(`Could not find supported schema file inside ${databaseRepositoryPath}.`);
     }
 
-    const schemaSql = await readFile(schemaPath, 'utf8');
+    const schemaContent = await readFile(schemaPath, 'utf8');
+
+    if (schemaPath.endsWith('schema.prisma')) {
+        return {
+            sourcePath: schemaPath,
+            sourceType: 'prisma',
+            tables: parsePrismaSchema(schemaContent),
+        };
+    }
 
     return {
         sourcePath: schemaPath,
-        tables: parsePostgresSchema(schemaSql).filter((table) => table.name !== 'schema_migrations'),
+        sourceType: 'postgres-sql',
+        tables: parsePostgresSchema(schemaContent).filter((table) => table.name !== 'schema_migrations'),
     };
 }

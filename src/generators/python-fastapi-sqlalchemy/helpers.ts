@@ -7,6 +7,7 @@ export const generatedHeader = [
 ].join('\n');
 
 export const sqlalchemyImportOrder = [
+    'ARRAY',
     'BigInteger',
     'Boolean',
     'Column',

@@ -2,7 +2,7 @@
 
 `db-man` generates application persistence code from database schema repositories.
 
-The first adapter supports Python/FastAPI applications that use SQLAlchemy and Pydantic. The database repository remains the owner of migrations and `schema.sql`; `db-man` consumes that contract and writes compatible files inside each application repository.
+The first adapter supports Python/FastAPI applications that use SQLAlchemy and Pydantic. `db-man` also supports TypeScript/Next.js applications that use Prisma, such as Arcadia. The database repository remains the owner of migrations and schema files; `db-man` consumes that contract and writes compatible files inside each application repository.
 
 ## Requirements
 
@@ -82,6 +82,22 @@ The command creates a `.dbman` file like this:
 }
 ```
 
+For a TypeScript/Next.js application that uses Prisma, such as `arcadia`, use:
+
+```json
+{
+  "databaseRepository": {
+    "name": "arcadia-database",
+    "gitUrl": "git@github.com:amicci-labs/arcadia-database.git"
+  },
+  "application": {
+    "language": "typescript",
+    "framework": "nextjs",
+    "repositoryProvider": "prisma"
+  }
+}
+```
+
 After creation, the CLI suggests:
 
 ```bash
@@ -103,15 +119,23 @@ Apply changes:
 db-man generate
 ```
 
-The current adapter writes:
+The Python/FastAPI SQLAlchemy adapter writes:
 
 - `app/database/models.py`
 - `app/database/schemas.py`
 - `app/repositories/<table>_repository.py`
 
+The TypeScript/Next.js Prisma adapter writes:
+
+- `prisma/schema.prisma`
+
+After writing files, the Prisma adapter automatically runs the app's local Prisma CLI from `node_modules/.bin/prisma generate` so `@prisma/client` reflects the updated schema. Install the application dependencies before running `db-man generate`; `db-man` does not download Prisma on demand because that can accidentally use an incompatible major version.
+
 ## Schema Resolution
 
-When `db-man generate` runs, it reads `.dbman`, resolves the configured database repository, finds `schema.sql`, selects the configured adapter, and builds a file plan. `db-man` prefers `src/db/schema.sql` when it exists, then searches the repository for the first `schema.sql` while skipping directories such as `.git`, `node_modules`, and `dist`.
+When `db-man generate` runs, it reads `.dbman`, selects the configured adapter, resolves the configured database repository, finds a compatible `schema.prisma` or `schema.sql`, and builds a file plan. The default schema resolution prefers `src/db/schema.sql`, then `prisma/schema.prisma`, then searches the repository for the first compatible schema file while skipping directories such as `.git`, `node_modules`, and `dist`. Adapters can narrow this list; the Prisma adapter only accepts `schema.prisma`.
+
+The Prisma adapter requires `schema.prisma` because Prisma Client types are generated from that contract. SQL schemas remain supported by adapters that can translate `schema.sql` directly, such as the Python/FastAPI SQLAlchemy adapter.
 
 Repository resolution order:
 

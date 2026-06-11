@@ -82,6 +82,14 @@ function renderSqlalchemyColumn(column: DatabaseColumn, imports: Set<string>): s
 
 function resolveSqlalchemyType(column: DatabaseColumn, imports: Set<string>): SqlalchemyType {
     const normalizedType = normalizeSqlType(column.sqlType);
+
+    if (normalizedType.endsWith('[]')) {
+        imports.add('ARRAY');
+        const elementColumn = { ...column, sqlType: normalizedType.slice(0, -2) };
+        const elementType = resolveSqlalchemyType(elementColumn, imports);
+        return { expression: `ARRAY(${elementType.expression})` };
+    }
+
     const varcharLength = extractTypeNumbers(normalizedType)[0];
 
     if (/^(bigint|bigserial)\b/.test(normalizedType)) {

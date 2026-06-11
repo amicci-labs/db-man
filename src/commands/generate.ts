@@ -36,11 +36,13 @@ export async function generateCommand(args: string[], appRoot = process.cwd()): 
     loader.stop(databaseRepository.message);
 
     loader.start('Loading database schema');
-    const schema = await loadDatabaseSchema(databaseRepository.path);
+    const schema = await loadDatabaseSchema(databaseRepository.path, generator.schemaSourceTypes);
     loader.stop(`Loaded schema ${pc.dim(schema.sourcePath)}`);
 
+    const generatorContext = { appRoot, config, schema };
+
     loader.start('Building generation plan');
-    const generatedFiles = await generator.generate({ appRoot, config, schema });
+    const generatedFiles = await generator.generate(generatorContext);
     const plan = await buildFilePlan(appRoot, generatedFiles);
     loader.stop(`Planned ${plan.length} file(s)`);
 
@@ -55,6 +57,13 @@ export async function generateCommand(args: string[], appRoot = process.cwd()): 
     await applyFilePlan(plan);
     const changedCount = plan.filter((entry) => entry.action !== 'unchanged').length;
     loader.stop(`Wrote ${changedCount} file(s)`);
+
+    if (generator.afterGenerate) {
+        loader.start('Running post-generation steps');
+        await generator.afterGenerate(generatorContext);
+        loader.stop('Post-generation steps completed');
+    }
+
     outro('Generation completed.');
 }
 

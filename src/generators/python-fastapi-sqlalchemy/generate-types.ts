@@ -166,6 +166,11 @@ function renderFieldArguments(column: DatabaseColumn, mode: 'base' | 'read' | 'u
 function resolvePydanticType(column: DatabaseColumn, imports: PydanticImports): string {
     const normalizedType = normalizeSqlType(column.sqlType);
 
+    if (normalizedType.endsWith('[]')) {
+        const elementColumn = { ...column, sqlType: normalizedType.slice(0, -2) };
+        return `list[${resolvePydanticType(elementColumn, imports)}]`;
+    }
+
     if (/^(bigint|bigserial|integer|int|int4|serial|smallint|int2|smallserial)\b/.test(normalizedType)) {
         return 'int';
     }

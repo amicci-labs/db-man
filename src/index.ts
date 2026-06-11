@@ -9,6 +9,7 @@ export type {
     DatabaseRepositoryOption,
     DatabaseRepositoryReference,
     DatabaseSchema,
+    DatabaseSchemaSourceType,
     DatabaseTable,
     DbmanConfig,
     FilePlanEntry,

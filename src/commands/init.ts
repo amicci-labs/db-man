@@ -23,6 +23,14 @@ const applicationOptions: ApplicationOption[] = [
         label: 'python-fastapi',
         repositoryProviders: ['sqlalchemy'],
     },
+    {
+        application: {
+            framework: 'nextjs',
+            language: 'typescript',
+        },
+        label: 'typescript-nextjs',
+        repositoryProviders: ['prisma'],
+    },
 ];
 
 export async function initCommand(args: string[], appRoot = process.cwd()): Promise<void> {

@@ -8,11 +8,20 @@ export interface CommandResult {
     stderr: string;
 }
 
-export async function runCommand(command: string, args: string[], cwd: string): Promise<CommandResult> {
+export interface CommandOptions {
+    timeout?: number;
+}
+
+export async function runCommand(
+    command: string,
+    args: string[],
+    cwd: string,
+    options: CommandOptions = {},
+): Promise<CommandResult> {
     const result = await execFileAsync(command, args, {
         cwd,
         maxBuffer: 1024 * 1024 * 10,
-        timeout: 30_000,
+        timeout: options.timeout ?? 30_000,
     });
 
     return {

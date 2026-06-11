@@ -1,7 +1,12 @@
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
-const preferredSchemaPath = 'src/db/schema.sql';
+import type { DatabaseSchemaSourceType } from '../types.js';
+
+const schemaSources: Array<{ sourceType: DatabaseSchemaSourceType; preferredPath: string; fileName: string }> = [
+    { fileName: 'schema.sql', preferredPath: 'src/db/schema.sql', sourceType: 'postgres-sql' },
+    { fileName: 'schema.prisma', preferredPath: 'prisma/schema.prisma', sourceType: 'prisma' },
+];
 const ignoredDirectories = new Set([
     '.git',
     '.hg',
@@ -11,17 +16,25 @@ const ignoredDirectories = new Set([
     'node_modules',
 ]);
 
-export async function findSchemaFile(repositoryPath: string): Promise<string | undefined> {
-    const preferredPath = path.join(repositoryPath, preferredSchemaPath);
+export async function findSchemaFile(
+    repositoryPath: string,
+    sourceTypes: DatabaseSchemaSourceType[] = ['postgres-sql', 'prisma'],
+): Promise<string | undefined> {
+    const supportedSources = schemaSources.filter((source) => sourceTypes.includes(source.sourceType));
+    const supportedFileNames = new Set(supportedSources.map((source) => source.fileName));
 
-    if (await isFile(preferredPath)) {
-        return preferredPath;
+    for (const schemaSource of supportedSources) {
+        const preferredPath = path.join(repositoryPath, schemaSource.preferredPath);
+
+        if (await isFile(preferredPath)) {
+            return preferredPath;
+        }
     }
 
-    return findFirstSchemaFile(repositoryPath);
+    return findFirstSchemaFile(repositoryPath, supportedFileNames);
 }
 
-async function findFirstSchemaFile(directoryPath: string): Promise<string | undefined> {
+async function findFirstSchemaFile(directoryPath: string, supportedFileNames: Set<string>): Promise<string | undefined> {
     const entries = await readdir(directoryPath, { withFileTypes: true }).catch(() => []);
     const sortedEntries = [...entries].sort((firstEntry, secondEntry) => {
         if (firstEntry.isDirectory() && !secondEntry.isDirectory()) {
@@ -38,7 +51,7 @@ async function findFirstSchemaFile(directoryPath: string): Promise<string | unde
     for (const entry of sortedEntries) {
         const entryPath = path.join(directoryPath, entry.name);
 
-        if (entry.isFile() && entry.name === 'schema.sql') {
+        if (entry.isFile() && supportedFileNames.has(entry.name)) {
             return entryPath;
         }
 
@@ -46,7 +59,7 @@ async function findFirstSchemaFile(directoryPath: string): Promise<string | unde
             continue;
         }
 
-        const schemaPath = await findFirstSchemaFile(entryPath);
+        const schemaPath = await findFirstSchemaFile(entryPath, supportedFileNames);
         if (schemaPath) {
             return schemaPath;
         }

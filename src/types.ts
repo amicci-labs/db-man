@@ -27,8 +27,11 @@ export interface ApplicationConfig {
     repositoryProvider: string;
 }
 
+export type DatabaseSchemaSourceType = 'postgres-sql' | 'prisma';
+
 export interface DatabaseSchema {
     sourcePath: string;
+    sourceType: DatabaseSchemaSourceType;
     tables: DatabaseTable[];
 }
 
@@ -66,5 +69,7 @@ export interface GeneratorAdapter {
     language: string;
     framework: string;
     repositoryProvider: string;
+    schemaSourceTypes?: DatabaseSchemaSourceType[];
     generate(context: GeneratorContext): GeneratedFile[] | Promise<GeneratedFile[]>;
+    afterGenerate?(context: GeneratorContext): void | Promise<void>;
 }
