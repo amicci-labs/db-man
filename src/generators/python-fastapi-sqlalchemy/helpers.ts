@@ -121,6 +121,14 @@ export function extractTypeNumbers(normalizedType: string): number[] {
 }
 
 export function singularize(value: string): string {
+    if (value.endsWith('analyses')) {
+        return `${value.slice(0, -8)}analysis`;
+    }
+
+    if (value.endsWith('analysis')) {
+        return value;
+    }
+
     if (value.endsWith('ies')) {
         return `${value.slice(0, -3)}y`;
     }
