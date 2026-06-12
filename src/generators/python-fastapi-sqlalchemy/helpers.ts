@@ -10,11 +10,16 @@ export const sqlalchemyImportOrder = [
     'ARRAY',
     'BigInteger',
     'Boolean',
+    'CheckConstraint',
     'Column',
     'Date',
     'DateTime',
+    'Enum',
     'Float',
+    'ForeignKey',
+    'ForeignKeyConstraint',
     'Integer',
+    'Index',
     'JSON',
     'LargeBinary',
     'Numeric',
@@ -22,8 +27,11 @@ export const sqlalchemyImportOrder = [
     'String',
     'Text',
     'Time',
+    'UniqueConstraint',
     'Uuid',
     'func',
+    'asc',
+    'desc',
     'text',
 ];
 
@@ -66,7 +74,14 @@ const pythonKeywords = new Set([
 ]);
 
 export function isEditableColumn(column: DatabaseColumn): boolean {
-    return !column.primaryKey && !['created_at', 'updated_at', 'deleted_at'].includes(column.name);
+    const databaseGeneratedDefault = Boolean(
+        column.defaultValue
+        && parseLiteralDefault(column.defaultValue) === undefined,
+    );
+
+    return !column.primaryKey
+        && !databaseGeneratedDefault
+        && !['created_at', 'updated_at', 'deleted_at'].includes(column.name);
 }
 
 export function isSequenceDefault(defaultValue: string | undefined): boolean {
@@ -82,7 +97,10 @@ export function parseLiteralDefault(defaultValue: string | undefined): string | 
         return undefined;
     }
 
-    const normalizedDefault = defaultValue.trim().replace(/::[A-Za-z_][\w]*(?:\[\])?/g, '');
+    const normalizedDefault = defaultValue.trim().replace(
+        /::(?:"[^"]+"|[A-Za-z_][\w$]*)(?:\.(?:"[^"]+"|[A-Za-z_][\w$]*))?(?:\[\])?/g,
+        '',
+    );
 
     if (/^true$/i.test(normalizedDefault)) {
         return 'True';
@@ -99,6 +117,20 @@ export function parseLiteralDefault(defaultValue: string | undefined): string | 
     const stringMatch = normalizedDefault.match(/^'(.*)'$/s);
     if (stringMatch) {
         return `"${escapePythonString(stringMatch[1].replace(/''/g, "'"))}"`;
+    }
+
+    return undefined;
+}
+
+export function parseJsonDefault(defaultValue: string | undefined): 'dict' | 'list' | undefined {
+    const literalDefault = parseLiteralDefault(defaultValue);
+
+    if (literalDefault === '"[]"') {
+        return 'list';
+    }
+
+    if (literalDefault === '"{}"') {
+        return 'dict';
     }
 
     return undefined;

@@ -8,6 +8,7 @@ import {
     isSequenceDefault,
     normalizeSqlType,
     orderImports,
+    parseJsonDefault,
     parseLiteralDefault,
     singularize,
     sqlalchemyImportOrder,
@@ -34,12 +35,81 @@ export function generateModels(tables: DatabaseTable[]): string {
 function generateModelClass(table: DatabaseTable, imports: Set<string>): string {
     const className = toClassName(singularize(table.name));
     const lines = [`class ${className}(Base):`, `    __tablename__ = "${table.name}"`, ''];
+    const tableArguments: string[] = [];
+
+    for (const constraint of table.uniqueConstraints ?? []) {
+        imports.add('UniqueConstraint');
+        tableArguments.push(`UniqueConstraint(${constraint.map((columnName) => `"${columnName}"`).join(', ')})`);
+    }
+
+    for (const constraint of table.checkConstraints ?? []) {
+        imports.add('CheckConstraint');
+        const name = constraint.name ? `, name="${escapePythonString(constraint.name)}"` : '';
+        tableArguments.push(
+            `CheckConstraint("${escapePythonString(constraint.expression)}"${name}).ddl_if(dialect="postgresql")`,
+        );
+    }
+
+    for (const constraint of table.foreignKeys ?? []) {
+        imports.add('ForeignKeyConstraint');
+        const options = [
+            constraint.name ? `name="${escapePythonString(constraint.name)}"` : undefined,
+            constraint.onDelete ? `ondelete="${escapePythonString(constraint.onDelete)}"` : undefined,
+        ].filter(Boolean);
+        const referencedColumns = constraint.referencedColumns
+            .map((columnName) => `"${constraint.referencedTable}.${columnName}"`)
+            .join(', ');
+        tableArguments.push(
+            `ForeignKeyConstraint([${constraint.columns.map((columnName) => `"${columnName}"`).join(', ')}], [${referencedColumns}]${options.length ? `, ${options.join(', ')}` : ''})`,
+        );
+    }
+
+    for (const index of table.indexes ?? []) {
+        imports.add('Index');
+        const expressions = index.expressions.map((expression) => renderIndexExpression(expression, imports));
+        const options = [
+            index.unique ? 'unique=True' : undefined,
+            index.method ? `postgresql_using="${escapePythonString(index.method)}"` : undefined,
+            index.where ? renderIndexWhere(index.where, imports) : undefined,
+        ].filter(Boolean);
+        tableArguments.push(
+            `Index("${escapePythonString(index.name)}", ${[...expressions, ...options].join(', ')}).ddl_if(dialect="postgresql")`,
+        );
+    }
+
+    if (tableArguments.length) {
+        lines.push('    __table_args__ = (');
+        lines.push(...tableArguments.map((argument) => `        ${argument},`));
+        lines.push('    )', '');
+    }
 
     for (const column of table.columns) {
         lines.push(renderSqlalchemyColumn(column, imports));
     }
 
     return lines.join('\n');
+}
+
+function renderIndexExpression(expression: string, imports: Set<string>): string {
+    const simpleMatch = expression.match(/^"?([A-Za-z_][\w$]*)"?$/);
+    if (simpleMatch) {
+        return `"${simpleMatch[1]}"`;
+    }
+
+    const orderedMatch = expression.match(/^"?([A-Za-z_][\w$]*)"?\s+(ASC|DESC)$/i);
+    if (orderedMatch) {
+        const orderFunction = orderedMatch[2].toLowerCase();
+        imports.add(orderFunction);
+        return `${orderFunction}("${orderedMatch[1]}")`;
+    }
+
+    imports.add('text');
+    return `text("${escapePythonString(expression)}")`;
+}
+
+function renderIndexWhere(expression: string, imports: Set<string>): string {
+    imports.add('text');
+    return `postgresql_where=text("${escapePythonString(expression)}")`;
 }
 
 function renderSqlalchemyColumn(column: DatabaseColumn, imports: Set<string>): string {
@@ -53,6 +123,12 @@ function renderSqlalchemyColumn(column: DatabaseColumn, imports: Set<string>): s
     }
 
     positionalArguments.push(sqlalchemyType.expression);
+
+    if (column.foreignKey) {
+        imports.add('ForeignKey');
+        const onDelete = column.foreignKey.onDelete ? `, ondelete="${column.foreignKey.onDelete}"` : '';
+        positionalArguments.push(`ForeignKey("${column.foreignKey.table}.${column.foreignKey.column}"${onDelete})`);
+    }
 
     if (column.primaryKey) {
         keywordArguments.push('primary_key=True', 'index=True');
@@ -82,6 +158,12 @@ function renderSqlalchemyColumn(column: DatabaseColumn, imports: Set<string>): s
 
 function resolveSqlalchemyType(column: DatabaseColumn, imports: Set<string>): SqlalchemyType {
     const normalizedType = normalizeSqlType(column.sqlType);
+
+    if (column.enumName && column.enumValues?.length) {
+        imports.add('Enum');
+        const values = column.enumValues.map((value) => `"${escapePythonString(value)}"`).join(', ');
+        return { expression: `Enum(${values}, name="${escapePythonString(column.enumName)}")` };
+    }
 
     if (normalizedType.endsWith('[]')) {
         imports.add('ARRAY');
@@ -188,6 +270,11 @@ function renderSqlalchemyDefaults(column: DatabaseColumn, imports: Set<string>):
             defaults.push('onupdate=func.now()');
         }
         return defaults;
+    }
+
+    const jsonDefault = parseJsonDefault(column.defaultValue);
+    if (jsonDefault) {
+        return [`default=${jsonDefault}`];
     }
 
     const literalDefault = parseLiteralDefault(column.defaultValue);

@@ -125,6 +125,16 @@ The Python/FastAPI SQLAlchemy adapter writes:
 - `app/database/schemas.py`
 - `app/repositories/<table>_repository.py`
 
+For PostgreSQL `schema.sql` sources, the adapter preserves:
+
+- native enums in SQLAlchemy models and Pydantic `Literal` types;
+- named and unnamed `CHECK` constraints;
+- normal, unique, composite, ordered, and partial indexes;
+- simple and composite foreign keys;
+- literal defaults and database-generated expression defaults.
+
+PostgreSQL-specific checks and indexes remain in SQLAlchemy metadata but are emitted only for the PostgreSQL dialect, keeping SQLite-based application tests usable.
+
 The TypeScript/Next.js Prisma adapter writes:
 
 - `prisma/schema.prisma`

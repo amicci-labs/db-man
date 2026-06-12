@@ -38,6 +38,10 @@ export interface DatabaseSchema {
 export interface DatabaseTable {
     name: string;
     columns: DatabaseColumn[];
+    checkConstraints?: DatabaseCheckConstraint[];
+    foreignKeys?: DatabaseForeignKeyConstraint[];
+    indexes?: DatabaseIndex[];
+    uniqueConstraints?: string[][];
 }
 
 export interface DatabaseColumn {
@@ -46,6 +50,36 @@ export interface DatabaseColumn {
     nullable: boolean;
     primaryKey: boolean;
     defaultValue?: string;
+    enumName?: string;
+    enumValues?: string[];
+    foreignKey?: DatabaseForeignKey;
+}
+
+export interface DatabaseCheckConstraint {
+    expression: string;
+    name?: string;
+}
+
+export interface DatabaseForeignKey {
+    column: string;
+    onDelete?: string;
+    table: string;
+}
+
+export interface DatabaseForeignKeyConstraint {
+    columns: string[];
+    name?: string;
+    onDelete?: string;
+    referencedColumns: string[];
+    referencedTable: string;
+}
+
+export interface DatabaseIndex {
+    expressions: string[];
+    method?: string;
+    name: string;
+    unique: boolean;
+    where?: string;
 }
 
 export interface GeneratedFile {

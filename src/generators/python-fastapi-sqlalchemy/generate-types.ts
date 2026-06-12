@@ -6,6 +6,7 @@ import {
     isEditableColumn,
     isSequenceDefault,
     normalizeSqlType,
+    parseJsonDefault,
     parseLiteralDefault,
     singularize,
     toClassName,
@@ -17,6 +18,7 @@ interface PydanticImports {
     datetime: boolean;
     decimal: boolean;
     field: boolean;
+    literal: boolean;
     optional: boolean;
     uuid: boolean;
 }
@@ -27,6 +29,7 @@ export function generateTypes(tables: DatabaseTable[]): string {
         datetime: false,
         decimal: false,
         field: false,
+        literal: false,
         optional: false,
         uuid: false,
     };
@@ -56,8 +59,15 @@ function renderImportLines(imports: PydanticImports): string[] {
         importLines.push('from decimal import Decimal');
     }
 
+    const typingImports: string[] = [];
+    if (imports.literal) {
+        typingImports.push('Literal');
+    }
     if (imports.optional) {
-        importLines.push('from typing import Optional');
+        typingImports.push('Optional');
+    }
+    if (typingImports.length) {
+        importLines.push(`from typing import ${typingImports.join(', ')}`);
     }
 
     if (imports.uuid) {
@@ -118,14 +128,28 @@ function renderPydanticField(column: DatabaseColumn, mode: 'base' | 'read' | 'up
     const annotation = optional ? `Optional[${baseType}]` : baseType;
     const fieldArguments = renderFieldArguments(column, mode);
     const literalDefault = mode === 'update' ? 'None' : parseLiteralDefault(column.defaultValue);
+    const jsonDefault = mode === 'base' ? parseJsonDefault(column.defaultValue) : undefined;
     imports.optional ||= optional;
+
+    if (jsonDefault) {
+        imports.field = true;
+        return `    ${attributeName}: ${annotation} = Field(default_factory=${jsonDefault})`;
+    }
 
     if (fieldArguments.length) {
         imports.field = true;
+        if (mode === 'base' && literalDefault !== undefined) {
+            fieldArguments.unshift(`default=${literalDefault}`);
+        } else if (mode === 'base' && column.defaultValue) {
+            fieldArguments.unshift('default=None');
+        }
         return `    ${attributeName}: ${annotation} = Field(${fieldArguments.join(', ')})`;
     }
 
-    if (mode === 'update' || column.nullable) {
+    if (mode === 'update' || column.nullable || (mode === 'base' && column.defaultValue)) {
+        if (literalDefault !== undefined) {
+            return `    ${attributeName}: ${annotation} = ${literalDefault}`;
+        }
         return `    ${attributeName}: ${annotation} = None`;
     }
 
@@ -166,6 +190,11 @@ function renderFieldArguments(column: DatabaseColumn, mode: 'base' | 'read' | 'u
 function resolvePydanticType(column: DatabaseColumn, imports: PydanticImports): string {
     const normalizedType = normalizeSqlType(column.sqlType);
 
+    if (column.enumValues?.length) {
+        imports.literal = true;
+        return `Literal[${column.enumValues.map((value) => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`).join(', ')}]`;
+    }
+
     if (normalizedType.endsWith('[]')) {
         const elementColumn = { ...column, sqlType: normalizedType.slice(0, -2) };
         return `list[${resolvePydanticType(elementColumn, imports)}]`;
@@ -203,7 +232,7 @@ function resolvePydanticType(column: DatabaseColumn, imports: PydanticImports): 
     }
 
     if (/^(json|jsonb)\b/.test(normalizedType)) {
-        return 'dict';
+        return parseJsonDefault(column.defaultValue) === 'list' ? 'list[object]' : 'dict';
     }
 
     if (/^uuid\b/.test(normalizedType)) {

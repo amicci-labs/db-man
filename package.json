@@ -1,6 +1,6 @@
 {
     "name": "@amicci-labs/db-man",
-    "version": "0.2.1",
+    "version": "0.3.0",
     "description": "Generate application persistence code from database schema repositories.",
     "type": "module",
     "bin": {
@@ -14,7 +14,7 @@
     ],
     "scripts": {
         "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node -e \"require('node:fs').chmodSync('dist/cli.js', 0o755)\"",
-        "test": "npm run typecheck",
+        "test": "npm run build && node --test tests/*.test.mjs",
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "prepare": "npm run build"
     },

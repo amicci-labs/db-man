@@ -31,10 +31,8 @@ function generateRepository(table: DatabaseTable): string {
     return ensureTrailingNewline(`${generatedHeader}import logging
 from typing import Optional
 
-from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from app.database.database import get_db
 from app.database.models import ${className}
 from app.database.schemas import ${className}Create, ${className}Update
 
@@ -51,7 +49,7 @@ class ${repositoryClassName}:
         return self.session.query(${className}).filter_by(${primaryKeyAttribute}=${primaryKeyParameter}).first()
 
     def create_${singularName}(self, payload: ${className}Create) -> ${className}:
-        ${singularName} = ${className}(**payload.model_dump())
+        ${singularName} = ${className}(**payload.model_dump(exclude_unset=True))
         self.session.add(${singularName})
         self.session.commit()
         self.session.refresh(${singularName})
@@ -68,10 +66,6 @@ class ${repositoryClassName}:
     def delete_${singularName}(self, ${singularName}: ${className}) -> None:
         self.session.delete(${singularName})
         self.session.commit()
-
-
-def get_${singularName}_repository(session: Session = Depends(get_db)) -> ${repositoryClassName}:
-    return ${repositoryClassName}(session=session)
 `);
 }
 
