@@ -1,5 +1,9 @@
 # db-man
 
+<p align="center">
+  <img src="assets/menzinho_v2.png" alt="Texto alternativo" width="300px">
+</p>
+
 `db-man` generates application persistence code from database schema repositories.
 
 The first adapter supports Python/FastAPI applications that use SQLAlchemy and Pydantic. `db-man` also supports TypeScript/Next.js applications that use Prisma, such as Arcadia. The database repository remains the owner of migrations and schema files; `db-man` consumes that contract and writes compatible files inside each application repository.
